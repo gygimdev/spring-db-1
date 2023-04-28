@@ -2,6 +2,7 @@ package hello.jdbc.repository;
 
 import hello.jdbc.domain.Member;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.jdbc.support.JdbcUtils;
 
 import javax.sql.DataSource;
@@ -9,15 +10,17 @@ import java.sql.*;
 import java.util.NoSuchElementException;
 
 /**
- * JDBC - DataSource 사용, JdbcUtils 사용
+ * JDBC - 트랜잭션 매니저(스프링)
+ * DataSourceUtils.getConnection()
+ * DataSourceUtils.releaseConnection()
  */
 @Slf4j
-public class MemberRepositoryV1 {
+public class MemberRepositoryV3 {
 
     private final DataSource dataSource;
 
     //생성자
-    public MemberRepositoryV1(DataSource dataSource) {
+    public MemberRepositoryV3(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -48,10 +51,12 @@ public class MemberRepositoryV1 {
     }
 
     /**
-     * 조회
+     * 조회 - 트랜잭션 적용
      */
     public Member findById(String memberId) throws SQLException {
         String sql = "select * from member where member_id = ?";
+
+
         Connection conn = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
@@ -76,7 +81,10 @@ public class MemberRepositoryV1 {
             throw  e;
         }
         finally {
-            close(conn, pstmt, null);
+            JdbcUtils.closeResultSet(rs);
+            JdbcUtils.closeStatement(pstmt);
+            // 트랜잭션을 위해 connection 을 유지해야하기 때문에 닫으면 안된다
+            //JdbcUtils.closeConnection(conn);
         }
 
     }
@@ -101,7 +109,9 @@ public class MemberRepositoryV1 {
             log.error("db error", e);
             throw e;
         } finally {
-            close(conn, pstmt,null);
+            JdbcUtils.closeStatement(pstmt);
+            // 트랜잭션을 위해 connection 을 유지해야하기 때문에 닫으면 안된다
+            //JdbcUtils.closeConnection(conn);
         }
 
     }
@@ -131,12 +141,13 @@ public class MemberRepositoryV1 {
     private void close(Connection conn, Statement stmt, ResultSet rs){
         JdbcUtils.closeResultSet(rs);
         JdbcUtils.closeStatement(stmt);
-        JdbcUtils.closeConnection(conn);
+        //주의! 트랜잭션 동기화를 사용하려면 DataSourceUtils 를 사용해야합니다.
+        DataSourceUtils.releaseConnection(conn, dataSource);
     }
 
     private Connection getConnection() throws SQLException {
-
-        Connection conn = dataSource.getConnection();
+        // 주의! 트랜잭션 동기화
+        Connection conn = DataSourceUtils.getConnection(dataSource);
         log.info("get connection={}, class={}", conn, conn.getClass());
         return conn;
     }

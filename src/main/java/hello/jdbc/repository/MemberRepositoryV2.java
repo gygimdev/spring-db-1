@@ -9,15 +9,15 @@ import java.sql.*;
 import java.util.NoSuchElementException;
 
 /**
- * JDBC - DataSource 사용, JdbcUtils 사용
+ * JDBC - Transaction & ConnectionParam
  */
 @Slf4j
-public class MemberRepositoryV1 {
+public class MemberRepositoryV2 {
 
     private final DataSource dataSource;
 
     //생성자
-    public MemberRepositoryV1(DataSource dataSource) {
+    public MemberRepositoryV2(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -48,16 +48,15 @@ public class MemberRepositoryV1 {
     }
 
     /**
-     * 조회
+     * 조회 - 트랜잭션 적용
      */
-    public Member findById(String memberId) throws SQLException {
+    public Member findById(Connection conn, String memberId) throws SQLException {
         String sql = "select * from member where member_id = ?";
-        Connection conn = null;
+
         PreparedStatement pstmt = null;
         ResultSet rs = null;
 
         try {
-            conn = getConnection();
             pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, memberId);
             rs = pstmt.executeQuery();
@@ -76,7 +75,10 @@ public class MemberRepositoryV1 {
             throw  e;
         }
         finally {
-            close(conn, pstmt, null);
+            JdbcUtils.closeResultSet(rs);
+            JdbcUtils.closeStatement(pstmt);
+            // 트랜잭션을 위해 connection 을 유지해야하기 때문에 닫으면 안된다
+            //JdbcUtils.closeConnection(conn);
         }
 
     }
@@ -84,14 +86,12 @@ public class MemberRepositoryV1 {
     /**
      * 업데이트
      */
-    public void update(String memberId, int money) throws SQLException {
+    public void update(Connection conn, String memberId, int money) throws SQLException {
         String sql = "update member set money=? where member_id=?";
 
-        Connection conn = null;
         PreparedStatement pstmt = null;
 
         try {
-            conn = getConnection();
             pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, money);
             pstmt.setString(2, memberId);
@@ -101,7 +101,9 @@ public class MemberRepositoryV1 {
             log.error("db error", e);
             throw e;
         } finally {
-            close(conn, pstmt,null);
+            JdbcUtils.closeStatement(pstmt);
+            // 트랜잭션을 위해 connection 을 유지해야하기 때문에 닫으면 안된다
+            //JdbcUtils.closeConnection(conn);
         }
 
     }

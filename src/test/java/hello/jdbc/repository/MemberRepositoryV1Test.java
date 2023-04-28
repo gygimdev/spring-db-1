@@ -30,7 +30,7 @@ class MemberRepositoryV1Test {
         dataSource.setJdbcUrl(URL);
         dataSource.setUsername(USERNAME);
         dataSource.setPassword(PASSWORD);
-        
+
 
         repository = new MemberRepositoryV1(dataSource);
     }
